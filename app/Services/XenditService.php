@@ -35,58 +35,102 @@ class XenditService
         $customerEmail = $customerData['email'] ?? null;
         $customerPhone = $customerData['telepon'] ?? null;
 
-        // Create invoice request
+        // Validate and format phone number (must start with +62)
+        if ($customerPhone) {
+            // Remove leading 0 and add +62
+            $customerPhone = preg_replace('/^0/', '+62', $customerPhone);
+            // If doesn't start with +, add +62
+            if (!str_starts_with($customerPhone, '+')) {
+                $customerPhone = '+62' . $customerPhone;
+            }
+        }
+
+        // Basic invoice data (required fields only)
         $invoiceData = [
             'external_id' => $externalId,
             'amount' => (float) $pricingTier->price,
-            'payer_email' => $customerEmail,
-            'description' => "{$form->title} - {$pricingTier->name}",
+            'description' => substr("{$form->title} - {$pricingTier->name}", 0, 255), // Max 255 chars
             'invoice_duration' => 86400, // 24 hours
-            'currency' => $pricingTier->currency,
-            'success_redirect_url' => config('xendit.success_redirect_url') . '?external_id=' . $externalId,
-            'failure_redirect_url' => config('xendit.failure_redirect_url') . '?external_id=' . $externalId,
+            'currency' => $pricingTier->currency ?? 'IDR',
         ];
 
-        // Add customer data if available
-        if ($customerName) {
-            $invoiceData['customer'] = [
-                'given_names' => $customerName,
-                'email' => $customerEmail,
-                'mobile_number' => $customerPhone,
-            ];
+        // Add payer email if valid
+        if ($customerEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+            $invoiceData['payer_email'] = $customerEmail;
+        }
+
+        // Add redirect URLs
+        $invoiceData['success_redirect_url'] = config('xendit.success_redirect_url') . '?external_id=' . $externalId;
+        $invoiceData['failure_redirect_url'] = config('xendit.failure_redirect_url') . '?external_id=' . $externalId;
+
+        // Add customer data if name is available
+        if ($customerName && $customerName !== 'Customer') {
+            $customer = ['given_names' => substr($customerName, 0, 255)];
+            
+            if ($customerEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+                $customer['email'] = $customerEmail;
+            }
+            
+            if ($customerPhone) {
+                $customer['mobile_number'] = $customerPhone;
+            }
+            
+            $invoiceData['customer'] = $customer;
         }
 
         // Add items
         $invoiceData['items'] = [
             [
-                'name' => $pricingTier->name,
+                'name' => substr($pricingTier->name, 0, 255),
                 'quantity' => 1,
                 'price' => (float) $pricingTier->price,
             ]
         ];
 
-        // Create invoice via Xendit API
-        $createInvoiceRequest = new CreateInvoiceRequest($invoiceData);
-        $xenditInvoice = $this->invoiceApi->createInvoice($createInvoiceRequest);
+        try {
+            // Log request for debugging
+            \Log::info('Creating Xendit invoice', [
+                'external_id' => $externalId,
+                'amount' => $invoiceData['amount'],
+                'email' => $invoiceData['payer_email'] ?? null,
+            ]);
 
-        // Store payment record in database
-        $payment = Payment::create([
-            'submission_id' => $submission->id,
-            'form_id' => $form->id,
-            'pricing_tier_id' => $pricingTier->id,
-            'xendit_invoice_id' => $xenditInvoice['id'],
-            'xendit_invoice_url' => $xenditInvoice['invoice_url'],
-            'external_id' => $externalId,
-            'amount' => $pricingTier->price,
-            'currency' => $pricingTier->currency,
-            'status' => 'pending',
-            'expired_at' => now()->addSeconds($invoiceData['invoice_duration']),
-        ]);
+            // Create invoice via Xendit API
+            $createInvoiceRequest = new CreateInvoiceRequest($invoiceData);
+            $xenditInvoice = $this->invoiceApi->createInvoice($createInvoiceRequest);
 
-        // Update submission status to pending
-        $submission->update(['status' => 'pending']);
+            // Store payment record in database
+            $payment = Payment::create([
+                'submission_id' => $submission->id,
+                'form_id' => $form->id,
+                'pricing_tier_id' => $pricingTier->id,
+                'xendit_invoice_id' => $xenditInvoice['id'],
+                'xendit_invoice_url' => $xenditInvoice['invoice_url'],
+                'external_id' => $externalId,
+                'amount' => $pricingTier->price,
+                'currency' => $pricingTier->currency,
+                'status' => 'pending',
+                'expired_at' => now()->addSeconds($invoiceData['invoice_duration']),
+            ]);
 
-        return $payment;
+            // Update submission status to pending
+            $submission->update(['status' => 'pending']);
+
+            \Log::info('Xendit invoice created successfully', [
+                'payment_id' => $payment->id,
+                'invoice_id' => $xenditInvoice['id'],
+            ]);
+
+            return $payment;
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to create Xendit invoice', [
+                'error' => $e->getMessage(),
+                'submission_id' => $submission->id,
+                'data' => $invoiceData ?? [],
+            ]);
+            throw $e;
+        }
     }
 
     /**
