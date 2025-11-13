@@ -64,10 +64,28 @@ class SubmissionController extends Controller
     {
         $submission = $this->submissionService->submitForm($request->validated());
 
+        // Prepare response data
+        $responseData = [
+            'submission' => new SubmissionResource($submission),
+        ];
+
+        // If requires payment, include payment info
+        if ($submission->status === 'pending_payment' && $submission->payment) {
+            $responseData['payment'] = [
+                'id' => $submission->payment->id,
+                'invoice_url' => $submission->payment->xendit_invoice_url,
+                'amount' => $submission->payment->amount,
+                'expired_at' => $submission->payment->expired_at,
+            ];
+            $message = 'Form submitted successfully. Please complete payment.';
+        } else {
+            $message = 'Form submitted successfully.';
+        }
+
         return response()->json([
             'success' => true,
-            'message' => 'Form submitted successfully',
-            'data' => new SubmissionResource($submission),
+            'message' => $message,
+            'data' => $responseData,
         ], 201);
     }
 

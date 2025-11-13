@@ -13,6 +13,10 @@ use Illuminate\Validation\ValidationException;
 
 class SubmissionService
 {
+    public function __construct(
+        protected XenditService $xenditService
+    ) {}
+
     public function submitForm(array $data): Submission
     {
         return DB::transaction(function () use ($data) {
@@ -67,7 +71,13 @@ class SubmissionService
                 'paid_at' => $isFree ? now() : null,
             ]);
 
-            return $submission->load(['form', 'pricingTier', 'affiliateReward']);
+            // Auto-create Xendit invoice for paid submissions
+            if (!$isFree && $form->enable_payment) {
+                $payment = $this->xenditService->createInvoice($submission, $data);
+                $submission->payment_invoice_url = $payment->xendit_invoice_url;
+            }
+
+            return $submission->load(['form', 'pricingTier', 'affiliateReward', 'payment']);
         });
     }
 
