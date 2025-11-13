@@ -37,16 +37,25 @@ class SubmissionService
             // Handle affiliate
             $affiliateData = $this->processAffiliate($form, $data, $amounts['total_amount']);
 
+            // Determine payment status:
+            // - If form doesn't require payment: mark as 'paid'
+            // - If pricing tier amount is 0 (free): mark as 'paid'
+            // - Otherwise: mark as 'pending_payment'
+            $isFree = !$form->enable_payment || $amounts['total_amount'] == 0;
+            $paymentStatus = $isFree ? 'paid' : 'pending_payment';
+            $submissionStatus = $isFree ? 'completed' : 'pending_payment';
+
             // Create submission
             $submission = Submission::create([
                 'form_id' => $form->id,
                 'data' => $formData,
-                'payment_status' => $form->enable_payment ? 'pending' : 'paid',
+                'status' => $submissionStatus,
+                'payment_status' => $paymentStatus,
                 'pricing_tier_id' => $data['pricing_tier_id'] ?? null,
                 'amount' => $amounts['base_amount'],
                 'upsells_selected' => $data['upsells_selected'] ?? null,
                 'total_amount' => $amounts['total_amount'],
-                'payment_method' => $data['payment_method'] ?? null,
+                'payment_method' => $isFree ? 'free' : ($data['payment_method'] ?? null),
                 'affiliate_code' => $affiliateData['code'],
                 'affiliate_reward_id' => $affiliateData['reward_id'],
                 'affiliate_commission' => $affiliateData['commission'],
@@ -55,6 +64,7 @@ class SubmissionService
                 'contact_phone' => $contactInfo['phone'],
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
+                'paid_at' => $isFree ? now() : null,
             ]);
 
             return $submission->load(['form', 'pricingTier', 'affiliateReward']);
@@ -131,7 +141,7 @@ class SubmissionService
                             if (!$value) {
                                 return; // Skip if empty and not required
                             }
-                            $affiliate = \App\Models\AffiliateReward::where('affiliate_code', $value)
+                            $affiliate = AffiliateReward::where('affiliate_code', $value)
                                 ->where('form_id', $form->id)
                                 ->where('is_active', true)
                                 ->where('status', 'approved')

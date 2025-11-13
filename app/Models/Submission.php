@@ -84,6 +84,11 @@ class Submission extends Model
         return $this->belongsTo(AffiliateReward::class);
     }
 
+    public function payment(): HasOne
+    {
+        return $this->hasOne(Payment::class);
+    }
+
     public function announcement(): HasOne
     {
         return $this->hasOne(Announcement::class);

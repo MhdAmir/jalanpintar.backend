@@ -4,6 +4,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\FormController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\AffiliateController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,12 @@ Route::prefix('public')->group(function () {
 
     // Verify affiliate code (public)
     Route::post('affiliates/verify', [AffiliateController::class, 'verify']);
+
+    // Payment webhook (public - called by Xendit)
+    Route::post('payments/webhook', [PaymentController::class, 'webhook']);
+    
+    // Get payment by external ID (for redirect pages)
+    Route::get('payments/external/{externalId}', [PaymentController::class, 'getByExternalId']);
 });
 
 // Authentication routes (public)
@@ -47,6 +54,10 @@ Route::middleware('jwt')->group(function () {
     Route::put('affiliates/{id}', [AffiliateController::class, 'update']);
     Route::delete('affiliates/{id}', [AffiliateController::class, 'destroy']);
     Route::get('affiliates/{id}/statistics', [AffiliateController::class, 'statistics']);
+    
+    // Payments - User routes
+    Route::post('submissions/{submissionId}/payment', [PaymentController::class, 'createInvoice']);
+    Route::get('payments/{paymentId}', [PaymentController::class, 'show']);
 });
 
 // Admin only routes
