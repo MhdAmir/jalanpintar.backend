@@ -21,6 +21,7 @@ class PublicSubmissionRequest extends FormRequest
             'upsells_selected' => 'nullable|array',
             'upsells_selected.*' => 'uuid|exists:upsells,id',
             'payment_method' => 'nullable|string|in:credit_card,bank_transfer,e_wallet,cash',
+            'status' => 'nullable|string|in:pending,approved,rejected'
         ];
     }
 
