@@ -21,6 +21,10 @@ class AffiliateReward extends Model
         'total_earned',
         'total_referrals',
         'is_active',
+        'status',
+        'rejection_reason',
+        'approved_at',
+        'approved_by',
     ];
 
     protected $casts = [
@@ -28,6 +32,7 @@ class AffiliateReward extends Model
         'total_earned' => 'decimal:2',
         'total_referrals' => 'integer',
         'is_active' => 'boolean',
+        'approved_at' => 'datetime',
     ];
 
     public function form(): BelongsTo
@@ -40,6 +45,11 @@ class AffiliateReward extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
     public function submissions(): HasMany
     {
         return $this->hasMany(Submission::class);
@@ -48,6 +58,18 @@ class AffiliateReward extends Model
     // Scope for active affiliates
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('is_active', true)->where('status', 'approved');
+    }
+
+    // Scope for pending affiliates
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    // Scope for approved affiliates
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
     }
 }

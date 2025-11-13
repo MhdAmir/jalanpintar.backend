@@ -103,4 +103,25 @@ class Form extends Model
     {
         return $query->where('enable_affiliate', true);
     }
+
+    // Check if form has affiliate field
+    public function hasAffiliateField(): bool
+    {
+        return $this->sections()
+            ->whereHas('fields', function ($query) {
+                $query->where('type', 'affiliate');
+            })
+            ->exists();
+    }
+
+    // Get affiliate field from form
+    public function getAffiliateField()
+    {
+        return $this->sections()
+            ->with('fields')
+            ->get()
+            ->pluck('fields')
+            ->flatten()
+            ->firstWhere('type', 'affiliate');
+    }
 }

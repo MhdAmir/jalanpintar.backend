@@ -22,11 +22,14 @@ class SubmissionService
                 ->where('is_active', true)
                 ->firstOrFail();
 
+            // Handle file uploads
+            $formData = $this->handleFileUploads($form, $data['data']);
+
             // Validate form fields
-            $this->validateFormData($form, $data['data']);
+            $this->validateFormData($form, $formData);
 
             // Extract contact information from data
-            $contactInfo = $this->extractContactInfo($data['data']);
+            $contactInfo = $this->extractContactInfo($formData);
 
             // Calculate amounts
             $amounts = $this->calculateAmounts($form, $data);
@@ -37,8 +40,8 @@ class SubmissionService
             // Create submission
             $submission = Submission::create([
                 'form_id' => $form->id,
-                'data' => $data['data'],
-                'payment_status' => $form->enable_payment ? 'unpaid' : 'paid',
+                'data' => $formData,
+                'payment_status' => $form->enable_payment ? 'pending' : 'paid',
                 'pricing_tier_id' => $data['pricing_tier_id'] ?? null,
                 'amount' => $amounts['base_amount'],
                 'upsells_selected' => $data['upsells_selected'] ?? null,
@@ -56,6 +59,36 @@ class SubmissionService
 
             return $submission->load(['form', 'pricingTier', 'affiliateReward']);
         });
+    }
+
+    private function handleFileUploads(Form $form, array $data): array
+    {
+        $processedData = $data;
+
+        // Get all file fields from form
+        $fileFields = $form->sections()
+            ->with('fields')
+            ->get()
+            ->pluck('fields')
+            ->flatten()
+            ->where('type', 'file');
+
+        foreach ($fileFields as $field) {
+            $fieldName = $field->name;
+
+            // Check if file exists in request
+            if (request()->hasFile("data.{$fieldName}")) {
+                $file = request()->file("data.{$fieldName}");
+
+                // Store file
+                $path = $file->store('submissions', 'public');
+
+                // Save file path to data
+                $processedData[$fieldName] = $path;
+            }
+        }
+
+        return $processedData;
     }
 
     private function validateFormData(Form $form, array $data): void
@@ -89,6 +122,25 @@ class SubmissionService
                         break;
                     case 'file':
                         $fieldRules[] = 'file';
+                        break;
+                    case 'affiliate':
+                        // Affiliate field validation
+                        $fieldRules[] = 'string';
+                        // Validate that affiliate code exists and is approved for this form
+                        $fieldRules[] = function ($attribute, $value, $fail) use ($form) {
+                            if (!$value) {
+                                return; // Skip if empty and not required
+                            }
+                            $affiliate = \App\Models\AffiliateReward::where('affiliate_code', $value)
+                                ->where('form_id', $form->id)
+                                ->where('is_active', true)
+                                ->where('status', 'approved')
+                                ->first();
+
+                            if (!$affiliate) {
+                                $fail('Kode affiliate tidak valid atau belum disetujui untuk form ini.');
+                            }
+                        };
                         break;
                 }
 
@@ -149,7 +201,8 @@ class SubmissionService
 
     private function processAffiliate(Form $form, array $data, float $totalAmount): array
     {
-        if (!$form->enable_affiliate || !isset($data['affiliate_code'])) {
+        // Check if form has affiliate field
+        if (!$form->hasAffiliateField()) {
             return [
                 'code' => null,
                 'reward_id' => null,
@@ -157,27 +210,47 @@ class SubmissionService
             ];
         }
 
-        $affiliate = AffiliateReward::where('affiliate_code', $data['affiliate_code'])
-            ->where('form_id', $form->id)
-            ->where('is_active', true)
-            ->first();
+        // Get affiliate code from form data
+        $affiliateField = $form->getAffiliateField();
+        $affiliateCode = $data['data'][$affiliateField->name] ?? null;
 
-        if (!$affiliate) {
+        // If no affiliate code provided, return null
+        if (!$affiliateCode) {
             return [
-                'code' => $data['affiliate_code'],
+                'code' => null,
                 'reward_id' => null,
                 'commission' => null,
             ];
         }
 
-        $commission = ($totalAmount * $affiliate->commission_percentage) / 100;
+        $affiliate = AffiliateReward::where('affiliate_code', $affiliateCode)
+            ->where('form_id', $form->id)
+            ->where('is_active', true)
+            ->where('status', 'approved')
+            ->first();
+
+        if (!$affiliate) {
+            return [
+                'code' => $affiliateCode,
+                'reward_id' => null,
+                'commission' => null,
+            ];
+        }
+
+        // Calculate commission based on type
+        $commission = 0;
+        if ($affiliate->commission_type === 'percentage') {
+            $commission = ($totalAmount * $affiliate->commission_value) / 100;
+        } else {
+            $commission = $affiliate->commission_value;
+        }
 
         // Update affiliate stats
         $affiliate->increment('total_referrals');
         $affiliate->increment('total_earned', $commission);
 
         return [
-            'code' => $data['affiliate_code'],
+            'code' => $affiliateCode,
             'reward_id' => $affiliate->id,
             'commission' => $commission,
         ];

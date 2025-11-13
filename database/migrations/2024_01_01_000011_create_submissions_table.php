@@ -23,7 +23,7 @@ return new class extends Migration {
             $table->decimal('upsells_amount', 12, 2)->default(0);
             $table->decimal('affiliate_amount', 12, 2)->default(0);
             $table->decimal('total_amount', 12, 2)->default(0);
-            $table->enum('payment_status', ['pending', 'paid', 'failed', 'refunded'])->default('pending');
+            $table->enum('payment_status', ['unpaid', 'pending', 'paid', 'failed', 'refunded'])->default('pending');
             $table->string('payment_method')->nullable();
             $table->timestamp('paid_at')->nullable();
 

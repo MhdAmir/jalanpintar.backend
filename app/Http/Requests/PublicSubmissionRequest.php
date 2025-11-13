@@ -16,10 +16,10 @@ class PublicSubmissionRequest extends FormRequest
         return [
             'form_slug' => 'required|string|exists:forms,slug',
             'data' => 'required|array',
+            'data.*' => 'nullable', // Allow any data including files
             'pricing_tier_id' => 'nullable|uuid|exists:pricing_tiers,id',
             'upsells_selected' => 'nullable|array',
             'upsells_selected.*' => 'uuid|exists:upsells,id',
-            'affiliate_code' => 'nullable|string|exists:affiliate_rewards,affiliate_code',
             'payment_method' => 'nullable|string|in:credit_card,bank_transfer,e_wallet,cash',
         ];
     }
@@ -28,7 +28,6 @@ class PublicSubmissionRequest extends FormRequest
     {
         return [
             'form_slug.exists' => 'Form tidak ditemukan atau tidak aktif',
-            'affiliate_code.exists' => 'Kode afiliasi tidak valid',
         ];
     }
 }

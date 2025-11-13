@@ -19,11 +19,20 @@ class AffiliateRewardResource extends JsonResource
             'total_earned' => number_format((float) $this->total_earned, 2, '.', ''),
             'total_referrals' => $this->total_referrals,
             'is_active' => $this->is_active,
+            'status' => $this->status,
+            'rejection_reason' => $this->rejection_reason,
+            'approved_at' => $this->approved_at?->toISOString(),
             'user' => $this->whenLoaded('user', function () {
                 return [
                     'id' => $this->user->id,
                     'name' => $this->user->name,
                     'email' => $this->user->email,
+                ];
+            }),
+            'approved_by' => $this->whenLoaded('approvedBy', function () {
+                return [
+                    'id' => $this->approvedBy->id,
+                    'name' => $this->approvedBy->name,
                 ];
             }),
             'form' => new FormResource($this->whenLoaded('form')),
