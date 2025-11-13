@@ -13,14 +13,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
-    })
-    ->withExceptions(function (Exceptions $exceptions): void {
-        //
-    })
-    ->withMiddleware(function (Middleware $middleware) {
+        // Handle CORS
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+
+        // Alias for JWT
         $middleware->alias([
             'jwt' => JwtMiddleware::class
         ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+        //
     })
     ->create();
