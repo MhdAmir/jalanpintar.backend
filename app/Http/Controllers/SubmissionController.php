@@ -69,7 +69,7 @@ class SubmissionController extends Controller
             'submission' => new SubmissionResource($submission),
         ];
 
-        // If requires payment, include payment info
+        // If requires payment, include payment info and redirect to Xendit
         if ($submission->status === 'pending' && $submission->payment) {
             $responseData['payment'] = [
                 'id' => $submission->payment->id,
@@ -77,8 +77,20 @@ class SubmissionController extends Controller
                 'amount' => $submission->payment->amount,
                 'expired_at' => $submission->payment->expired_at,
             ];
+            $responseData['redirect_url'] = $submission->payment->xendit_invoice_url;
             $message = 'Form submitted successfully. Please complete payment.';
         } else {
+            // Free submission - redirect to success page with query parameters
+            $frontendUrl = config('xendit.success_redirect_url', config('app.frontend_url') . '/payment/success');
+            
+            // Build custom success URL with query parameters
+            $queryParams = [
+                'form' => $submission->form->title,
+                'tier' => $submission->pricingTier ? $submission->pricingTier->name : 'Gratis',
+                'timestamp' => now()->format('d/m/Y, H.i.s'),
+            ];
+            
+            $responseData['redirect_url'] = $frontendUrl . '?' . http_build_query($queryParams);
             $message = 'Form submitted successfully.';
         }
 
