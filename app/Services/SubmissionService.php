@@ -48,7 +48,7 @@ class SubmissionService
             // - Otherwise: mark as 'pending'
             $isFree = !$form->enable_payment || $amounts['total_amount'] == 0;
             $paymentStatus = $isFree ? 'paid' : 'pending';
-            $submissionStatus = $isFree ? 'completed' : 'pending';
+            $submissionStatus = $isFree ? 'paid' : 'pending';
 
             // Create submission
             $submission = Submission::create([
