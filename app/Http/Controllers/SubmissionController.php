@@ -70,7 +70,7 @@ class SubmissionController extends Controller
         ];
 
         // If requires payment, include payment info
-        if ($submission->status === 'pending_payment' && $submission->payment) {
+        if ($submission->status === 'pending' && $submission->payment) {
             $responseData['payment'] = [
                 'id' => $submission->payment->id,
                 'invoice_url' => $submission->payment->xendit_invoice_url,
