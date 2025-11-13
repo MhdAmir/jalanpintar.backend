@@ -29,7 +29,7 @@ Route::prefix('public')->group(function () {
 
     // Payment webhook (public - called by Xendit)
     Route::post('payments/webhook', [PaymentController::class, 'webhook']);
-    
+
     // Get payment by external ID (for redirect pages)
     Route::get('payments/external/{externalId}', [PaymentController::class, 'getByExternalId']);
 });
@@ -54,7 +54,7 @@ Route::middleware('jwt')->group(function () {
     Route::put('affiliates/{id}', [AffiliateController::class, 'update']);
     Route::delete('affiliates/{id}', [AffiliateController::class, 'destroy']);
     Route::get('affiliates/{id}/statistics', [AffiliateController::class, 'statistics']);
-    
+
     // Payments - User routes
     Route::post('submissions/{submissionId}/payment', [PaymentController::class, 'createInvoice']);
     Route::get('payments/{paymentId}', [PaymentController::class, 'show']);
@@ -93,7 +93,7 @@ Route::middleware(['jwt', 'admin'])->group(function () {
     Route::get('submissions/statistics', [SubmissionController::class, 'statistics']);
     Route::get('submissions/{id}', [SubmissionController::class, 'show']);
     Route::patch('submissions/{id}/payment-status', [SubmissionController::class, 'updatePaymentStatus']);
-    
+
     // Admin - Get submissions by form ID
     Route::get('forms/{formId}/submissions', [SubmissionController::class, 'getByFormId']);
 
