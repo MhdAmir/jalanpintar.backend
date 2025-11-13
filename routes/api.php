@@ -93,6 +93,9 @@ Route::middleware(['jwt', 'admin'])->group(function () {
     Route::get('submissions/statistics', [SubmissionController::class, 'statistics']);
     Route::get('submissions/{id}', [SubmissionController::class, 'show']);
     Route::patch('submissions/{id}/payment-status', [SubmissionController::class, 'updatePaymentStatus']);
+    
+    // Admin - Get submissions by form ID
+    Route::get('forms/{formId}/submissions', [SubmissionController::class, 'getByFormId']);
 
     // Admin - Announcements CRUD
     Route::apiResource('announcements', AnnouncementController::class);

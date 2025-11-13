@@ -133,6 +133,74 @@ class SubmissionController extends Controller
         ]);
     }
 
+    public function getByFormId(Request $request, string $formId): JsonResponse
+    {
+        $query = Submission::with(['form', 'pricingTier', 'affiliateReward', 'payment'])
+            ->where('form_id', $formId);
+
+        // Filter by tier (Free or Paid)
+        if ($request->has('tier')) {
+            $tier = strtolower($request->tier);
+            if ($tier === 'free') {
+                $query->where('payment_status', 'paid')->where('total_amount', 0);
+            } elseif ($tier === 'paid') {
+                $query->where('payment_status', 'paid')->where('total_amount', '>', 0);
+            }
+        }
+
+        // Filter by status (Pending, Paid)
+        if ($request->has('status')) {
+            $status = strtolower($request->status);
+            if ($status === 'pending') {
+                $query->where('status', 'pending');
+            } elseif ($status === 'paid') {
+                $query->where('payment_status', 'paid');
+            }
+        }
+
+        // Search by name, email, or other data
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('contact_name', 'like', "%{$search}%")
+                    ->orWhere('contact_email', 'like', "%{$search}%")
+                    ->orWhere('contact_phone', 'like', "%{$search}%")
+                    ->orWhere('submission_number', 'like', "%{$search}%");
+            });
+        }
+
+        // Sort by latest
+        $submissions = $query->latest()->paginate($request->get('per_page', 15));
+
+        // Calculate statistics
+        $stats = [
+            'total_submissions' => Submission::where('form_id', $formId)->count(),
+            'free_tier' => Submission::where('form_id', $formId)
+                ->where('payment_status', 'paid')
+                ->where('total_amount', 0)
+                ->count(),
+            'paid' => Submission::where('form_id', $formId)
+                ->where('payment_status', 'paid')
+                ->where('total_amount', '>', 0)
+                ->count(),
+            'total_revenue' => Submission::where('form_id', $formId)
+                ->where('payment_status', 'paid')
+                ->sum('total_amount'),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => SubmissionResource::collection($submissions),
+            'statistics' => $stats,
+            'meta' => [
+                'current_page' => $submissions->currentPage(),
+                'last_page' => $submissions->lastPage(),
+                'per_page' => $submissions->perPage(),
+                'total' => $submissions->total(),
+            ],
+        ]);
+    }
+
     public function statistics(Request $request): JsonResponse
     {
         $formId = $request->query('form_id');
