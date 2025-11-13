@@ -31,7 +31,7 @@ return new class extends Migration {
             $table->foreignUuid('affiliate_reward_id')->nullable()->constrained('affiliate_rewards')->onDelete('set null');
 
             // Status
-            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->enum('status', allowed: ['pending', 'approved', 'rejected'])->default('pending');
             $table->timestamp('submitted_at')->nullable();
 
             $table->timestamps();

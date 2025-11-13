@@ -83,8 +83,8 @@ class XenditService
             'expired_at' => now()->addSeconds($invoiceData['invoice_duration']),
         ]);
 
-        // Update submission status to pending_payment
-        $submission->update(['status' => 'pending_payment']);
+        // Update submission status to pending
+        $submission->update(['status' => 'pending']);
 
         return $payment;
     }
@@ -106,7 +106,7 @@ class XenditService
 
         // Update payment status based on webhook event
         $status = strtolower($data['status'] ?? '');
-        
+
         switch ($status) {
             case 'paid':
             case 'settled':
@@ -116,7 +116,7 @@ class XenditService
                     'payment_channel' => $data['payment_channel'] ?? null,
                     'paid_at' => now(),
                 ]);
-                
+
                 // Update submission status to paid
                 $payment->submission->update(['status' => 'paid']);
                 break;

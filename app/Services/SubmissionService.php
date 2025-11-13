@@ -45,10 +45,10 @@ class SubmissionService
             // Determine payment status:
             // - If form doesn't require payment: mark as 'paid'
             // - If pricing tier amount is 0 (free): mark as 'paid'
-            // - Otherwise: mark as 'pending_payment'
+            // - Otherwise: mark as 'pending'
             $isFree = !$form->enable_payment || $amounts['total_amount'] == 0;
-            $paymentStatus = $isFree ? 'paid' : 'pending_payment';
-            $submissionStatus = $isFree ? 'completed' : 'pending_payment';
+            $paymentStatus = $isFree ? 'paid' : 'pending';
+            $submissionStatus = $isFree ? 'completed' : 'pending';
 
             // Create submission
             $submission = Submission::create([
