@@ -66,22 +66,22 @@ class XenditService
             'timestamp' => now()->format('d/m/Y, H.i.s'),
             'external_id' => $externalId,
         ];
-        
+
         $invoiceData['success_redirect_url'] = config('xendit.success_redirect_url') . '?' . http_build_query($queryParams);
         $invoiceData['failure_redirect_url'] = config('xendit.failure_redirect_url') . '?external_id=' . $externalId;
 
         // Add customer data if name is available
         if ($customerName && $customerName !== 'Customer') {
             $customer = ['given_names' => substr($customerName, 0, 255)];
-            
+
             if ($customerEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
                 $customer['email'] = $customerEmail;
             }
-            
+
             if ($customerPhone) {
                 $customer['mobile_number'] = $customerPhone;
             }
-            
+
             $invoiceData['customer'] = $customer;
         }
 

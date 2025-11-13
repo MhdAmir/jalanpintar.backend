@@ -82,14 +82,14 @@ class SubmissionController extends Controller
         } else {
             // Free submission - redirect to success page with query parameters
             $frontendUrl = config('xendit.success_redirect_url', config('app.frontend_url') . '/payment/success');
-            
+
             // Build custom success URL with query parameters
             $queryParams = [
                 'form' => $submission->form->title,
                 'tier' => $submission->pricingTier ? $submission->pricingTier->name : 'Gratis',
                 'timestamp' => now()->format('d/m/Y, H.i.s'),
             ];
-            
+
             $responseData['redirect_url'] = $frontendUrl . '?' . http_build_query($queryParams);
             $message = 'Form submitted successfully.';
         }
