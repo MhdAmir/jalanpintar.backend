@@ -15,7 +15,8 @@ class SubmissionService
 {
     public function __construct(
         protected XenditService $xenditService
-    ) {}
+    ) {
+    }
 
     public function submitForm(array $data): Submission
     {
