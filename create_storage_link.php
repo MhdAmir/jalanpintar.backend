@@ -54,17 +54,17 @@ echo "Creating symbolic link...\n";
 if (function_exists('symlink')) {
     if (@symlink($target, $link)) {
         echo "✅ SUCCESS! Storage link created successfully!\n\n";
-        
+
         // Verify the link
         if (is_link($link)) {
             echo "Verification: Link exists and points to " . readlink($link) . "\n";
         }
-        
+
         echo "\n📝 Next steps:\n";
         echo "1. Delete this script (create_storage_link.php) for security\n";
         echo "2. Test file uploads in your application\n";
         echo "3. Make sure storage/app/public is writable (chmod 755)\n";
-        
+
     } else {
         echo "❌ ERROR: Failed to create symbolic link.\n";
         echo "   Possible reasons:\n";
