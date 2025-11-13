@@ -12,7 +12,7 @@ return new class extends Migration {
             $table->foreignUuid('section_id')->constrained('sections')->onDelete('cascade');
             $table->string('label');
             $table->string('name'); // Field name for form data
-            $table->enum('type', ['text', 'email', 'tel', 'textarea', 'number', 'select', 'checkbox', 'radio', 'date', 'file']);
+            $table->enum('type', ['text', 'email', 'phone', 'textarea', 'number', 'select', 'checkbox', 'radio', 'date', 'file']);
             $table->string('placeholder')->nullable();
             $table->text('help_text')->nullable();
             $table->boolean('is_required')->default(false);

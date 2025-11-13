@@ -81,12 +81,12 @@ class FormController extends Controller
     public function update(UpdateFormRequest $request, string $id): JsonResponse
     {
         $form = Form::findOrFail($id);
-        $form->update($request->validated());
+        $form = $this->formService->updateFormWithSections($form, $request->validated());
 
         return response()->json([
             'success' => true,
             'message' => 'Form updated successfully',
-            'data' => new FormResource($form->load(['category', 'sections.fields'])),
+            'data' => new FormResource($form),
         ]);
     }
 

@@ -14,13 +14,18 @@ class StoreFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255',
+            'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'slug' => 'nullable|string|max:255|unique:forms,slug',
+            'category_id' => 'nullable|uuid|exists:categories,id',
+            'cover_image' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
             'enable_payment' => 'sometimes|boolean',
             'enable_affiliate' => 'sometimes|boolean',
-            'category_id' => 'nullable|uuid|exists:categories,id',
+            'max_submissions' => 'nullable|integer|min:1',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after:start_date',
+            'settings' => 'nullable|array',
 
             // Sections (optional on create)
             'sections' => 'sometimes|array',
@@ -31,12 +36,33 @@ class StoreFormRequest extends FormRequest
             // Fields within sections
             'sections.*.fields' => 'sometimes|array',
             'sections.*.fields.*.label' => 'required|string|max:255',
+            'sections.*.fields.*.name' => 'nullable|string|max:255',
             'sections.*.fields.*.type' => 'required|in:text,email,phone,textarea,number,select,checkbox,radio,date,file',
-            'sections.*.fields.*.required' => 'sometimes|boolean',
             'sections.*.fields.*.placeholder' => 'nullable|string',
+            'sections.*.fields.*.help_text' => 'nullable|string',
+            'sections.*.fields.*.is_required' => 'sometimes|boolean',
+            'sections.*.fields.*.required' => 'sometimes|boolean',
             'sections.*.fields.*.options' => 'nullable|array',
             'sections.*.fields.*.validation_rules' => 'nullable|array',
             'sections.*.fields.*.order' => 'sometimes|integer|min:0',
+
+            // Pricing Tiers (optional)
+            'pricing_tiers' => 'sometimes|array',
+            'pricing_tiers.*.name' => 'required|string|max:255',
+            'pricing_tiers.*.description' => 'nullable|string',
+            'pricing_tiers.*.price' => 'required|numeric|min:0',
+            'pricing_tiers.*.currency' => 'sometimes|string|max:3',
+            'pricing_tiers.*.is_default' => 'sometimes|boolean',
+            'pricing_tiers.*.is_active' => 'sometimes|boolean',
+            'pricing_tiers.*.order' => 'sometimes|integer|min:0',
+
+            // Upsells (optional)
+            'upsells' => 'sometimes|array',
+            'upsells.*.name' => 'required|string|max:255',
+            'upsells.*.description' => 'nullable|string',
+            'upsells.*.price' => 'required|numeric|min:0',
+            'upsells.*.is_active' => 'sometimes|boolean',
+            'upsells.*.order' => 'sometimes|integer|min:0',
         ];
     }
 }
