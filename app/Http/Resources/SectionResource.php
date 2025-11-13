@@ -14,7 +14,7 @@ class SectionResource extends JsonResource
             'title' => $this->title,
             'description' => $this->description,
             'order' => $this->order,
-            'fields' => FieldResource::collection($this->whenLoaded('fields')),
+            'fields' => FieldResource::collection($this->relationLoaded('fields') ? $this->fields : collect()),
         ];
     }
 }

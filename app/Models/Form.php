@@ -104,24 +104,110 @@ class Form extends Model
         return $query->where('enable_affiliate', true);
     }
 
-    // Check if form has affiliate field
+    // Check if form has affiliate field (now automatic based on enable_affiliate)
     public function hasAffiliateField(): bool
     {
-        return $this->sections()
-            ->whereHas('fields', function ($query) {
-                $query->where('type', 'affiliate');
-            })
-            ->exists();
+        return $this->enable_affiliate === true;
     }
 
-    // Get affiliate field from form
-    public function getAffiliateField()
+    // Get affiliate field from form (auto-generated)
+    public function getAffiliateField($sectionId = null)
     {
-        return $this->sections()
-            ->with('fields')
-            ->get()
-            ->pluck('fields')
-            ->flatten()
-            ->firstWhere('type', 'affiliate');
+        return new Field([
+            'id' => 'virtual-affiliate-field',
+            'section_id' => $sectionId,
+            'label' => 'Kode Referral (Opsional)',
+            'name' => 'affiliate_code',
+            'type' => 'affiliate',
+            'placeholder' => 'Masukkan kode referral jika ada',
+            'help_text' => 'Dapatkan diskon atau benefit dengan memasukkan kode referral dari teman Anda',
+            'is_required' => false,
+            'options' => null,
+            'validation_rules' => null,
+            'order' => 1,
+        ]);
+    }
+
+    // Get payment tier field (auto-generated)
+    public function getPaymentTierField($sectionId = null)
+    {
+        return new Field([
+            'id' => 'virtual-payment-tier-field',
+            'section_id' => $sectionId,
+            'label' => 'Pilih Paket',
+            'name' => 'pricing_tier_id',
+            'type' => 'select',
+            'placeholder' => 'Pilih paket yang sesuai',
+            'help_text' => 'Pilih paket pembayaran sesuai kebutuhan Anda',
+            'is_required' => true,
+            'options' => null, // Will be filled dynamically from pricing_tiers
+            'validation_rules' => null,
+            'order' => 0,
+        ]);
+    }
+
+    // Override sections relation to auto-inject payment/affiliate section
+    public function getSectionsWithAffiliateAttribute()
+    {
+        $sections = $this->sections()->with('fields')->orderBy('order')->get();
+
+        $hasPayment = $this->enable_payment;
+        $hasAffiliate = $this->enable_affiliate;
+
+        // If either is enabled, create virtual section
+        if ($hasPayment || $hasAffiliate) {
+            // Determine section title and description
+            if ($hasPayment && $hasAffiliate) {
+                $sectionTitle = 'Pembayaran & Referral';
+                $sectionDescription = 'Pilih paket pembayaran dan masukkan kode referral jika ada';
+            } elseif ($hasPayment) {
+                $sectionTitle = 'Informasi Pembayaran';
+                $sectionDescription = 'Pilih paket pembayaran yang sesuai dengan kebutuhan Anda';
+            } else {
+                $sectionTitle = 'Kode Referral';
+                $sectionDescription = 'Masukkan kode referral untuk mendapatkan benefit';
+            }
+
+            // Create virtual section
+            $virtualSection = new Section([
+                'id' => 'virtual-payment-affiliate-section',
+                'form_id' => $this->id,
+                'title' => $sectionTitle,
+                'description' => $sectionDescription,
+                'order' => 9999, // Always last
+            ]);
+            $virtualSection->exists = true;
+            $virtualSection->setRelation('fields', collect());
+
+            // Add payment tier field if enabled
+            if ($hasPayment) {
+                $paymentField = $this->getPaymentTierField($virtualSection->id);
+                $paymentField->exists = true;
+
+                // Add pricing tiers as options
+                $pricingTiers = $this->pricingTiers()->where('is_active', true)->orderBy('order')->get();
+                $paymentField->options = $pricingTiers->map(function ($tier) {
+                    return [
+                        'value' => $tier->id,
+                        'label' => $tier->name . ' - Rp ' . number_format($tier->price, 0, ',', '.'),
+                        'price' => $tier->price,
+                    ];
+                })->toArray();
+
+                $virtualSection->fields->push($paymentField);
+            }
+
+            // Add affiliate field if enabled
+            if ($hasAffiliate) {
+                $affiliateField = $this->getAffiliateField($virtualSection->id);
+                $affiliateField->exists = true;
+                $virtualSection->fields->push($affiliateField);
+            }
+
+            // Add virtual section to the end
+            $sections->push($virtualSection);
+        }
+
+        return $sections;
     }
 }

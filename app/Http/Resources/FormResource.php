@@ -9,6 +9,11 @@ class FormResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Get sections with auto-injected affiliate field
+        $sections = $this->whenLoaded('sections', function () {
+            return $this->sectionsWithAffiliate;
+        });
+
         return [
             'id' => $this->id,
             'category_id' => $this->category_id,
@@ -25,7 +30,7 @@ class FormResource extends JsonResource
             'max_submissions' => $this->max_submissions,
             'settings' => $this->settings,
             'category' => new CategoryResource($this->whenLoaded('category')),
-            'sections' => SectionResource::collection($this->whenLoaded('sections')),
+            'sections' => SectionResource::collection($sections),
             'pricing_tiers' => PricingTierResource::collection($this->whenLoaded('pricingTiers')),
             'upsells' => UpsellResource::collection($this->whenLoaded('upsells')),
             'submissions_count' => $this->whenCounted('submissions'),

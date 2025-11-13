@@ -37,7 +37,7 @@ class StoreFormRequest extends FormRequest
             'sections.*.fields' => 'sometimes|array',
             'sections.*.fields.*.label' => 'required|string|max:255',
             'sections.*.fields.*.name' => 'nullable|string|max:255',
-            'sections.*.fields.*.type' => 'required|in:text,email,phone,textarea,number,select,checkbox,radio,date,file,affiliate',
+            'sections.*.fields.*.type' => 'required|in:text,email,phone,textarea,number,select,checkbox,radio,date,file',
             'sections.*.fields.*.placeholder' => 'nullable|string',
             'sections.*.fields.*.help_text' => 'nullable|string',
             'sections.*.fields.*.is_required' => 'sometimes|boolean',
