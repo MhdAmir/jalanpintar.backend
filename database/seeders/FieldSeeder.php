@@ -60,7 +60,7 @@ class FieldSeeder extends Seeder
                 'section_id' => $pendaftaranDataPribadi->id,
                 'label' => 'Jenis Kelamin',
                 'name' => 'jenis_kelamin',
-                'type' => 'radio',
+                'type' => 'select',
                 'is_required' => true,
                 'order' => 3,
                 'options' => [
@@ -442,7 +442,7 @@ class FieldSeeder extends Seeder
                 'section_id' => $codingBackground->id,
                 'label' => 'Pengalaman Programming',
                 'name' => 'pengalaman',
-                'type' => 'radio',
+                'type' => 'select',
                 'is_required' => true,
                 'order' => 1,
                 'options' => [

@@ -16,7 +16,7 @@ class StoreFieldRequest extends FormRequest
         return [
             'section_id' => 'required|uuid|exists:sections,id',
             'label' => 'required|string|max:255',
-            'type' => 'required|in:text,email,phone,textarea,number,select,checkbox,radio,date,file',
+            'type' => 'required|in:text,email,phone,textarea,number,select,checkbox,date,file',
             'required' => 'sometimes|boolean',
             'placeholder' => 'nullable|string',
             'options' => 'nullable|array',

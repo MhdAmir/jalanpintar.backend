@@ -18,9 +18,9 @@ class SubmissionService
     ) {
     }
 
-    public function submitForm(array $data): Submission
+    public function submitForm(array $data, $user = null): Submission
     {
-        return DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($data, $user) {
             // Get the form
             $form = Form::with(['sections.fields', 'pricingTiers', 'upsells'])
                 ->where('slug', $data['form_slug'])
@@ -33,8 +33,42 @@ class SubmissionService
             // Validate form fields
             $this->validateFormData($form, $formData);
 
-            // Extract contact information from data
-            $contactInfo = $this->extractContactInfo($formData);
+            // For authenticated submissions, use user's email and info
+            if ($user) {
+                // Check if this user has already submitted this form
+                $existingSubmission = Submission::where('form_id', $form->id)
+                    ->where('email', $user->email)
+                    ->first();
+
+                if ($existingSubmission) {
+                    throw ValidationException::withMessages([
+                        'email' => ['Anda sudah pernah mengisi form ini sebelumnya.'],
+                    ]);
+                }
+
+                // Use user's info
+                $contactInfo = [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $formData['phone'] ?? $formData['whatsapp'] ?? null,
+                ];
+            } else {
+                // For public submissions (if any remain), extract from form data
+                $contactInfo = $this->extractContactInfo($formData);
+
+                // Check if this email has already submitted this form
+                if (!empty($contactInfo['email'])) {
+                    $existingSubmission = Submission::where('form_id', $form->id)
+                        ->where('email', $contactInfo['email'])
+                        ->first();
+
+                    if ($existingSubmission) {
+                        throw ValidationException::withMessages([
+                            'email' => ['Email ini sudah pernah mengisi form ini sebelumnya.'],
+                        ]);
+                    }
+                }
+            }
 
             // Calculate amounts
             $amounts = $this->calculateAmounts($form, $data);
@@ -57,18 +91,16 @@ class SubmissionService
                 'status' => $submissionStatus,
                 'payment_status' => $paymentStatus,
                 'pricing_tier_id' => $data['pricing_tier_id'] ?? null,
-                'amount' => $amounts['base_amount'],
-                'upsells_selected' => $data['upsells_selected'] ?? null,
+                'tier_amount' => $amounts['base_amount'],
+                'selected_upsells' => $data['upsells_selected'] ?? null,
+                'upsells_amount' => $amounts['upsell_amount'] ?? 0,
                 'total_amount' => $amounts['total_amount'],
                 'payment_method' => $isFree ? 'free' : ($data['payment_method'] ?? null),
-                'affiliate_code' => $affiliateData['code'],
                 'affiliate_reward_id' => $affiliateData['reward_id'],
-                'affiliate_commission' => $affiliateData['commission'],
-                'contact_name' => $contactInfo['name'],
-                'contact_email' => $contactInfo['email'],
-                'contact_phone' => $contactInfo['phone'],
-                'ip_address' => request()->ip(),
-                'user_agent' => request()->userAgent(),
+                'affiliate_amount' => $affiliateData['commission'] ?? 0,
+                'name' => $contactInfo['name'],
+                'email' => $contactInfo['email'],
+                'phone' => $contactInfo['phone'],
                 'paid_at' => $isFree ? now() : null,
             ]);
 
@@ -76,6 +108,11 @@ class SubmissionService
             if (!$isFree && $form->enable_payment) {
                 $payment = $this->xenditService->createInvoice($submission, $data);
                 $submission->payment_invoice_url = $payment->xendit_invoice_url;
+            }
+
+            // Auto-generate affiliate code for user if this is their first submission for this form
+            if ($user) {
+                $this->createAffiliateForUser($user, $form);
             }
 
             return $submission->load(['form', 'pricingTier', 'affiliateReward', 'payment']);
@@ -227,7 +264,7 @@ class SubmissionService
             return [
                 'code' => null,
                 'reward_id' => null,
-                'commission' => null,
+                'commission' => 0,
             ];
         }
 
@@ -240,7 +277,7 @@ class SubmissionService
             return [
                 'code' => null,
                 'reward_id' => null,
-                'commission' => null,
+                'commission' => 0,
             ];
         }
 
@@ -254,7 +291,7 @@ class SubmissionService
             return [
                 'code' => $affiliateCode,
                 'reward_id' => null,
-                'commission' => null,
+                'commission' => 0,
             ];
         }
 
@@ -294,5 +331,62 @@ class SubmissionService
         $submission->update($updateData);
 
         return $submission;
+    }
+
+    /**
+     * Auto-create affiliate code for user after successful form submission
+     */
+    private function createAffiliateForUser($user, Form $form): void
+    {
+        // Check if user already has affiliate for this form
+        $existingAffiliate = \App\Models\AffiliateReward::where('user_id', $user->id)
+            ->where('form_id', $form->id)
+            ->first();
+
+        if ($existingAffiliate) {
+            return; // User already has affiliate for this form
+        }
+
+        // Generate unique affiliate code
+        $affiliateCode = $this->generateUniqueAffiliateCode($user, $form);
+
+        // Create affiliate reward
+        \App\Models\AffiliateReward::create([
+            'user_id' => $user->id,
+            'form_id' => $form->id,
+            'affiliate_code' => $affiliateCode,
+            'commission_type' => 'percentage', // Default commission type
+            'commission_value' => 10, // Default 10% commission
+            'status' => 'approved', // Auto-approve for form submitters
+            'is_active' => true,
+            'total_earned' => 0,
+            'total_referrals' => 0,
+            'approved_at' => now(),
+            'approved_by' => null, // System auto-approval
+        ]);
+    }
+
+    /**
+     * Generate unique affiliate code for user and form
+     */
+    private function generateUniqueAffiliateCode($user, Form $form): string
+    {
+        // Base code format: FORMSLUG_USERNAME_RANDOM
+        $baseCode = strtoupper(
+            substr($form->slug, 0, 8) . '_' .
+            substr(preg_replace('/[^a-zA-Z0-9]/', '', $user->name), 0, 6) . '_' .
+            substr(uniqid(), -4)
+        );
+
+        // Ensure uniqueness
+        $counter = 1;
+        $affiliateCode = $baseCode;
+
+        while (\App\Models\AffiliateReward::where('affiliate_code', $affiliateCode)->exists()) {
+            $affiliateCode = $baseCode . $counter;
+            $counter++;
+        }
+
+        return $affiliateCode;
     }
 }

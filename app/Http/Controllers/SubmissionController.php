@@ -40,9 +40,9 @@ class SubmissionController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('submission_number', 'like', "%{$search}%")
-                    ->orWhere('contact_name', 'like', "%{$search}%")
-                    ->orWhere('contact_email', 'like', "%{$search}%")
-                    ->orWhere('contact_phone', 'like', "%{$search}%");
+                    ->orWhere('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
@@ -62,7 +62,7 @@ class SubmissionController extends Controller
 
     public function store(PublicSubmissionRequest $request): JsonResponse
     {
-        $submission = $this->submissionService->submitForm($request->validated());
+        $submission = $this->submissionService->submitForm($request->validated(), $request->user());
 
         // Prepare response data
         $responseData = [
@@ -162,9 +162,9 @@ class SubmissionController extends Controller
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('contact_name', 'like', "%{$search}%")
-                    ->orWhere('contact_email', 'like', "%{$search}%")
-                    ->orWhere('contact_phone', 'like', "%{$search}%")
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
                     ->orWhere('submission_number', 'like', "%{$search}%");
             });
         }

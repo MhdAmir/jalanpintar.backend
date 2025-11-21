@@ -13,13 +13,10 @@ Route::get('/', function () {
     return response()->json(['message' => 'Form Builder API v1.0']);
 });
 
-// Public routes - Form submissions
+// Public routes
 Route::prefix('public')->group(function () {
-    // Get form by slug (for public submission)
+    // Get form by slug (for viewing form structure)
     Route::get('forms/{slug}', [FormController::class, 'getBySlug']);
-
-    // Submit form (public)
-    Route::post('submissions', [SubmissionController::class, 'store']);
 
     // Check announcement status (public)
     Route::post('announcements/check', [AnnouncementController::class, 'publicCheck']);
@@ -29,6 +26,9 @@ Route::prefix('public')->group(function () {
 
     // Payment webhook (public - called by Xendit)
     Route::post('payments/webhook', [PaymentController::class, 'webhook']);
+
+    // Alternative webhook route (for compatibility)
+    Route::post('webhooks', [PaymentController::class, 'webhook']);
 
     // Get payment by external ID (for redirect pages)
     Route::get('payments/external/{externalId}', [PaymentController::class, 'getByExternalId']);
@@ -47,7 +47,14 @@ Route::middleware('jwt')->group(function () {
     Route::put('/user', [AuthController::class, 'updateUser']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
+    // User forms with submission status
+    Route::get('/user/forms', [FormController::class, 'getUserForms']);
+
+    // Form submission (requires authentication)
+    Route::post('submissions', [SubmissionController::class, 'store']);
+
     // Affiliates - User routes
+    Route::get('affiliates/leaderboard', [AffiliateController::class, 'leaderboard']);
     Route::post('affiliates', [AffiliateController::class, 'store']);
     Route::get('affiliates/my/statistics', [AffiliateController::class, 'myStatistics']);
     Route::get('affiliates/{id}', [AffiliateController::class, 'show']);
@@ -65,6 +72,7 @@ Route::middleware(['jwt', 'admin'])->group(function () {
 
     // Admin - Manage all affiliates
     Route::get('admin/affiliates', [AffiliateController::class, 'index']);
+    Route::post('admin/affiliates', [AffiliateController::class, 'store']);
     Route::get('admin/affiliates/pending', [AffiliateController::class, 'pendingAffiliates']);
     Route::post('admin/affiliates/{id}/approve', [AffiliateController::class, 'approve']);
     Route::post('admin/affiliates/{id}/reject', [AffiliateController::class, 'reject']);

@@ -224,4 +224,62 @@ class FormController extends Controller
             'message' => 'Upsells reordered successfully',
         ]);
     }
+
+    /**
+     * Get all forms with user submission status for authenticated user
+     */
+    public function getUserForms(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $query = Form::with(['category', 'sections.fields'])
+            ->where('is_active', true)
+            ->withCount('submissions');
+
+        // Filter by category if provided
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Search by title if provided
+        if ($request->has('search')) {
+            $query->where('title', 'like', '%' . $request->search . '%');
+        }
+
+        $forms = $query->get();
+
+        // Get user's submissions for these forms
+        $userSubmissions = \App\Models\Submission::where('email', $user->email)
+            ->whereIn('form_id', $forms->pluck('id'))
+            ->get()
+            ->keyBy('form_id');
+
+        // Map forms with submission status
+        $formsWithStatus = $forms->map(function ($form) use ($userSubmissions) {
+            $userSubmission = $userSubmissions->get($form->id);
+
+            return [
+                'id' => $form->id,
+                'title' => $form->title,
+                'slug' => $form->slug,
+                'description' => $form->description,
+                'category' => $form->category,
+                'sections' => $form->sections,
+                'submissions_count' => $form->submissions_count,
+                'enable_payment' => $form->enable_payment,
+                'user_has_submitted' => $userSubmission !== null,
+                'user_submission_status' => $userSubmission?->status,
+                'user_submission_id' => $userSubmission?->id,
+                'user_submitted_at' => $userSubmission?->created_at,
+                'created_at' => $form->created_at,
+                'updated_at' => $form->updated_at,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $formsWithStatus,
+            'total' => $formsWithStatus->count(),
+        ]);
+    }
 }

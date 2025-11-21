@@ -147,16 +147,24 @@ class XenditService
     {
         $externalId = $data['external_id'] ?? null;
         if (!$externalId) {
+            \Log::warning('Webhook missing external_id', ['data' => $data]);
             return null;
         }
 
         $payment = Payment::where('external_id', $externalId)->first();
         if (!$payment) {
+            \Log::warning('Payment not found for external_id', ['external_id' => $externalId]);
             return null;
         }
 
         // Update payment status based on webhook event
         $status = strtolower($data['status'] ?? '');
+        \Log::info('Processing webhook', [
+            'external_id' => $externalId,
+            'payment_id' => $payment->id,
+            'status' => $status,
+            'original_status' => $data['status'] ?? null
+        ]);
 
         switch ($status) {
             case 'paid':
@@ -168,18 +176,52 @@ class XenditService
                     'paid_at' => now(),
                 ]);
 
-                // Update submission status to paid
-                $payment->submission->update(['status' => 'paid']);
+                // Update submission payment_status and status
+                $payment->submission->update([
+                    'payment_status' => 'paid',
+                    'status' => 'approved', // Change from 'paid' to 'approved' as status
+                    'paid_at' => now(),
+                ]);
+
+                \Log::info('Payment processed successfully', [
+                    'payment_id' => $payment->id,
+                    'submission_id' => $payment->submission_id,
+                    'status' => 'paid'
+                ]);
                 break;
 
             case 'expired':
                 $payment->update(['status' => 'expired']);
-                $payment->submission->update(['status' => 'draft']);
+
+                // Get fresh submission to avoid caching issues
+                $submission = $payment->submission()->first();
+                $submissionUpdated = $submission->update([
+                    'payment_status' => 'expired',
+                    'status' => 'pending'
+                ]);
+
+                \Log::info('Payment expired processed', [
+                    'payment_id' => $payment->id,
+                    'submission_id' => $payment->submission_id,
+                    'submission_before' => $submission->getOriginal(),
+                    'submission_updated' => $submissionUpdated
+                ]);
                 break;
 
             case 'failed':
                 $payment->update(['status' => 'failed']);
-                $payment->submission->update(['status' => 'draft']);
+                $payment->submission->update([
+                    'payment_status' => 'failed',
+                    'status' => 'pending'
+                ]);
+                break;
+
+            default:
+                \Log::warning('Unhandled webhook status', [
+                    'status' => $status,
+                    'original_status' => $data['status'] ?? null,
+                    'payment_id' => $payment->id
+                ]);
                 break;
         }
 

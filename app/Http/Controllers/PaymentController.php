@@ -13,7 +13,8 @@ class PaymentController extends Controller
 {
     public function __construct(
         protected XenditService $xenditService
-    ) {}
+    ) {
+    }
 
     /**
      * Create payment invoice for submission
@@ -131,19 +132,31 @@ class PaymentController extends Controller
      */
     public function webhook(Request $request): JsonResponse
     {
+        Log::info('Webhook method called', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'all_data' => $request->all()
+        ]);
+
         try {
-            // Verify webhook token
+            // Verify webhook token (optional - comment out if not configured)
             $callbackToken = $request->header('x-callback-token');
-            
-            if ($callbackToken !== config('xendit.webhook_token')) {
+            $expectedToken = config('xendit.webhook_token');
+
+            Log::info('Token verification', [
+                'received_token' => $callbackToken,
+                'expected_token' => $expectedToken,
+                'tokens_match' => ($callbackToken === $expectedToken)
+            ]);
+
+            if ($expectedToken && $callbackToken !== $expectedToken) {
                 Log::warning('Invalid webhook token', [
-                    'received_token' => $callbackToken
+                    'received_token' => $callbackToken,
+                    'expected_token' => $expectedToken ? 'configured' : 'not_configured'
                 ]);
-                
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid webhook token'
-                ], 401);
+
+                // Still return success to prevent retry, but log the issue
+                return response()->json(['success' => true], 200);
             }
 
             // Log webhook data
@@ -153,29 +166,31 @@ class PaymentController extends Controller
             $payment = $this->xenditService->handleWebhook($request->all());
 
             if (!$payment) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Payment not found'
-                ], 404);
+                // Log untuk debugging, but still return success to Xendit
+                Log::warning('Payment not found in webhook', [
+                    'webhook_data' => $request->all()
+                ]);
+
+                // Return success to prevent Xendit from retrying
+                return response()->json(['success' => true], 200);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Webhook processed successfully',
-                'data' => $payment
-            ]);
+                'message' => 'Webhook processed successfully'
+            ], 200);
 
         } catch (\Exception $e) {
+            // Log error for debugging
             Log::error('Webhook processing failed', [
                 'error' => $e->getMessage(),
-                'data' => $request->all()
+                'data' => $request->all(),
+                'trace' => $e->getTraceAsString()
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Webhook processing failed',
-                'error' => $e->getMessage()
-            ], 500);
+            // Still return success to Xendit to prevent retry loop
+            // but log the error for manual investigation
+            return response()->json(['success' => true], 200);
         }
     }
 }
