@@ -129,6 +129,23 @@ class FormController extends Controller
         ]);
     }
 
+    public function getAdminBySlug(string $slug): JsonResponse
+    {
+        $form = $this->formService->getAdminForm($slug);
+
+        if (!$form) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Form not found or inactive',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => new FormResource($form),
+        ]);
+    }
+
     /**
      * Reorder sections within a form
      * POST /api/sections/reorder

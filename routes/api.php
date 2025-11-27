@@ -80,6 +80,9 @@ Route::middleware(['jwt', 'admin'])->group(function () {
     Route::post('admin/affiliates/{id}/approve', [AffiliateController::class, 'approve']);
     Route::post('admin/affiliates/{id}/reject', [AffiliateController::class, 'reject']);
 
+    Route::get('admin/forms/{slug}', [FormController::class, 'getBySlug']);
+
+
     // Admin - Categories CRUD
     Route::apiResource('categories', CategoryController::class)->except(['index', 'show']);
 

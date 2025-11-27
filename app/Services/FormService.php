@@ -139,7 +139,6 @@ class FormService
             $form->update([
                 'title' => $data['title'] ?? $form->title,
                 'description' => $data['description'] ?? $form->description,
-                'slug' => $data['slug'] ?? $form->slug,
                 'category_id' => $data['category_id'] ?? $form->category_id,
                 'cover_image' => $data['cover_image'] ?? $form->cover_image,
                 'is_active' => $data['is_active'] ?? $form->is_active,
@@ -325,6 +324,21 @@ class FormService
         ])
             ->where('slug', $slug)
             ->where('is_active', true)
+            ->first();
+    }
+
+    public function getAdminForm(string $slug): ?Form
+    {
+        return Form::with([
+            'sections.fields',
+            'pricingTiers' => function ($query) {
+                $query->active()->orderBy('order');
+            },
+            'upsells' => function ($query) {
+                $query->active()->orderBy('order');
+            }
+        ])
+            ->where('slug', $slug)
             ->first();
     }
 }
