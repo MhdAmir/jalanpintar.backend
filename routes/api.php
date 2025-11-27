@@ -80,7 +80,7 @@ Route::middleware(['jwt', 'admin'])->group(function () {
     Route::post('admin/affiliates/{id}/approve', [AffiliateController::class, 'approve']);
     Route::post('admin/affiliates/{id}/reject', [AffiliateController::class, 'reject']);
 
-    Route::get('admin/forms/{slug}', [FormController::class, 'getBySlug']);
+    Route::get('admin/forms/{slug}', [FormController::class, 'getAdminBySlug']);
 
 
     // Admin - Categories CRUD
