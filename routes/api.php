@@ -52,6 +52,9 @@ Route::middleware('jwt')->group(function () {
 
     // Form submission (requires authentication)
     Route::post('submissions', [SubmissionController::class, 'store']);
+    
+    // Get my submission for a specific form
+    Route::get('forms/{formId}/my-submission', [SubmissionController::class, 'getMySubmissionByForm']);
 
     // Affiliates - User routes
     Route::get('affiliates/leaderboard', [AffiliateController::class, 'leaderboard']);

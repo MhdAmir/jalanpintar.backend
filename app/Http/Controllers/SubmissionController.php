@@ -133,6 +133,31 @@ class SubmissionController extends Controller
         ]);
     }
 
+    /**
+     * Get current user's submission for a specific form
+     */
+    public function getMySubmissionByForm(string $formId): JsonResponse
+    {
+        $user = auth()->user();
+        
+        $submission = Submission::with(['form', 'pricingTier', 'affiliateReward', 'payment'])
+            ->where('form_id', $formId)
+            ->where('email', $user->email)
+            ->first();
+
+        if (!$submission) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You have not submitted this form yet',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => new SubmissionResource($submission),
+        ]);
+    }
+
     public function getByFormId(Request $request, string $formId): JsonResponse
     {
         $query = Submission::with(['form', 'pricingTier', 'affiliateReward', 'payment'])
